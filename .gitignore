@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 .env
 outputs/
+generated_audio/
 *.egg-info/
 *.wav
 server.*.log

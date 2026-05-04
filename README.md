@@ -1,6 +1,6 @@
-# Local Kokoro TTS Service
+# Local Speech Service
 
-Servicio local y ligero de text-to-speech usando Kokoro.
+Servicio local y ligero de text-to-speech usando Kokoro y transcripcion de audio usando Whisper.
 
 ## Requisitos
 
@@ -9,6 +9,7 @@ Servicio local y ligero de text-to-speech usando Kokoro.
 
 En Windows, la forma mas sencilla suele ser instalar `espeak-ng` y asegurarte de que el ejecutable queda en el `PATH`.
 El instalador de Windows intenta instalar automaticamente Python 3.12 y `espeak-ng` usando `winget` o Chocolatey si no los encuentra.
+En Linux, el instalador tambien intenta instalar Python 3.11/3.12, el modulo `venv` y `espeak-ng` usando el gestor de paquetes disponible (`apt`, `dnf`, `yum`, `pacman`, `zypper` o `apk`).
 
 ## Instalacion
 
@@ -48,6 +49,7 @@ SKIP_SYSTEM_DEPS=1 ./scripts/install.sh
 ```
 
 La primera generacion puede tardar porque Kokoro descarga o prepara los pesos del modelo.
+La primera transcripcion tambien puede tardar porque Whisper descarga el modelo local. Por defecto usa `tiny`; puedes cambiarlo con la variable de entorno `WHISPER_MODEL`, por ejemplo `small`, `medium` o `large-v3`.
 
 ## Ejecutar
 
@@ -73,6 +75,42 @@ Abre:
 http://127.0.0.1:8000
 ```
 
+Por defecto el servicio solo escucha en `127.0.0.1`, asi que no acepta conexiones desde otros equipos.
+Para exponerlo en tu red local, detenlo y arrancalo escuchando en todas las interfaces:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\stop.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\start.ps1 -BindHost 0.0.0.0
+```
+
+Desde `cmd.exe`:
+
+```bat
+scripts\stop.bat
+scripts\start.bat -BindHost 0.0.0.0
+```
+
+Tambien puedes usar el acceso directo:
+
+```bat
+scripts\start-lan.bat
+```
+
+En Linux:
+
+```bash
+./scripts/stop.sh
+SPEECH_HOST=0.0.0.0 ./scripts/start.sh
+```
+
+Entonces, desde otro equipo de la misma red, abre la IP LAN del equipo servidor:
+
+```text
+http://192.168.10.205:8000
+```
+
+Si sigue sin responder, revisa que el firewall del sistema permita conexiones entrantes TCP al puerto `8000`.
+
 Para detenerlo:
 
 ```powershell
@@ -97,10 +135,22 @@ Tambien puedes ejecutarlo en primer plano para ver los logs:
 .\.venv\Scripts\uvicorn.exe app.main:app --host 127.0.0.1 --port 8000
 ```
 
+Para verlo desde otros equipos en la red local:
+
+```powershell
+.\.venv\Scripts\uvicorn.exe app.main:app --host 0.0.0.0 --port 8000
+```
+
 En Linux:
 
 ```bash
 ./.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+Para verlo desde otros equipos en la red local:
+
+```bash
+./.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 ## API
@@ -121,6 +171,11 @@ Invoke-RestMethod `
 
 Si llamas a `/tts` o `/v1/audio/speech` sin `text`/`input`, el servicio responde con JSON explicando los campos requeridos, ejemplos de payload, limites, idiomas, voces y endpoints de metadata. Esto esta pensado para clientes automaticos y bots que descubren el API sin documentacion externa.
 
+Para obtener audio hay dos modos:
+
+- Enviar `text` a `/tts` sin `save` devuelve directamente bytes `audio/wav`. El cliente debe guardar el cuerpo de la respuesta como `.wav`.
+- Enviar `text` a `/tts` con `"save": true` guarda el WAV en el servidor y devuelve JSON con `filename`, `download_url` y `content_type`. Un bot debe resolver `download_url` contra el origen del servicio. Por ejemplo, si llamo a `http://192.168.10.205:8000/tts` y recibo `/audio/speech-...wav`, la descarga completa es `http://192.168.10.205:8000/audio/speech-...wav`.
+
 Generar WAV:
 
 ```powershell
@@ -132,6 +187,22 @@ Invoke-WebRequest `
   -OutFile output.wav
 ```
 
+Generar WAV y obtener una URL descargable desde cualquier equipo que pueda acceder al servicio:
+
+```powershell
+Invoke-RestMethod `
+  -Uri http://127.0.0.1:8000/tts `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body '{"text":"Hola, esto queda disponible para descarga.","lang_code":"e","voice":"ef_dora","speed":1.0,"save":true}'
+```
+
+La respuesta incluye `download_url`, por ejemplo `/audio/speech-...wav`. Si el servicio esta expuesto en la LAN, el fichero se descarga usando:
+
+```text
+http://192.168.10.205:8000/audio/speech-...wav
+```
+
 Endpoint compatible estilo OpenAI:
 
 ```powershell
@@ -141,6 +212,44 @@ Invoke-WebRequest `
   -ContentType "application/json" `
   -Body '{"model":"kokoro","input":"Hello from Kokoro.","voice":"af_heart","lang_code":"a","speed":1.0}' `
   -OutFile speech.wav
+```
+
+Transcribir audio:
+
+```powershell
+Invoke-RestMethod `
+  -Uri http://127.0.0.1:8000/transcribe `
+  -Method POST `
+  -Form @{
+    file = Get-Item .\audio.wav
+    language = "es"
+  }
+```
+
+Endpoint de transcripcion compatible estilo OpenAI:
+
+```powershell
+Invoke-RestMethod `
+  -Uri http://127.0.0.1:8000/v1/audio/transcriptions `
+  -Method POST `
+  -Form @{
+    file = Get-Item .\audio.wav
+    model = "whisper"
+    language = "es"
+    response_format = "json"
+  }
+```
+
+Para recibir solo texto:
+
+```powershell
+Invoke-RestMethod `
+  -Uri http://127.0.0.1:8000/transcribe `
+  -Method POST `
+  -Form @{
+    file = Get-Item .\audio.wav
+    response_format = "text"
+  }
 ```
 
 Codigos utiles de idioma:
