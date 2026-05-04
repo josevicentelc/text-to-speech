@@ -182,6 +182,38 @@ ensure_venv_module() {
   }
 }
 
+ensure_pip() {
+  if "$PYTHON" -m pip --version >/dev/null 2>&1; then
+    return
+  fi
+
+  echo "El entorno virtual existe, pero no tiene pip. Intentando repararlo..."
+
+  if "$PYTHON" -m ensurepip --upgrade >/dev/null 2>&1; then
+    return
+  fi
+
+  if [ "$SKIP_SYSTEM_DEPS" = "1" ]; then
+    echo "No se pudo activar pip con ensurepip y se omitieron dependencias de sistema." >&2
+    echo "Instala el paquete venv de tu Python o recrea .venv y vuelve a ejecutar el instalador." >&2
+    exit 1
+  fi
+
+  PYTHON_CMD="$(find_python)" || {
+    echo "No se encontro Python 3.11 o 3.12 para instalar soporte de venv/pip." >&2
+    exit 1
+  }
+  ensure_venv_module "$PYTHON_CMD"
+
+  if "$PYTHON" -m ensurepip --upgrade >/dev/null 2>&1; then
+    return
+  fi
+
+  echo "No se pudo instalar pip dentro de .venv." >&2
+  echo "Solucion manual recomendada: elimina .venv, instala python3-venv y vuelve a ejecutar ./scripts/install.sh." >&2
+  exit 1
+}
+
 cd "$ROOT"
 if [ ! -x "$PYTHON" ]; then
   install_python
@@ -202,6 +234,8 @@ if [ ! -d "$VENV" ]; then
 else
   echo "Usando entorno virtual existente: .venv"
 fi
+
+ensure_pip
 
 echo "Actualizando pip..."
 "$PYTHON" -m pip install --upgrade pip
