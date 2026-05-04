@@ -8,6 +8,7 @@ Servicio local y ligero de text-to-speech usando Kokoro.
 - `espeak-ng` instalado en el sistema para varios idiomas, incluido espanol.
 
 En Windows, la forma mas sencilla suele ser instalar `espeak-ng` y asegurarte de que el ejecutable queda en el `PATH`.
+El instalador de Windows intenta instalar automaticamente Python 3.12 y `espeak-ng` usando `winget` o Chocolatey si no los encuentra.
 
 ## Instalacion
 
@@ -17,6 +18,12 @@ Windows:
 powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
 ```
 
+Desde `cmd.exe`:
+
+```bat
+scripts\install.bat
+```
+
 Linux:
 
 ```bash
@@ -24,10 +31,16 @@ chmod +x scripts/*.sh
 ./scripts/install.sh
 ```
 
-Si ya tienes `espeak-ng` instalado o prefieres instalar dependencias de sistema a mano:
+Si ya tienes Python y `espeak-ng` instalados o prefieres instalar dependencias de sistema a mano:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -SkipSystemDeps
+```
+
+Desde `cmd.exe`:
+
+```bat
+scripts\install.bat -SkipSystemDeps
 ```
 
 ```bash
@@ -40,6 +53,12 @@ La primera generacion puede tardar porque Kokoro descarga o prepara los pesos de
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\start.ps1
+```
+
+Desde `cmd.exe`:
+
+```bat
+scripts\start.bat
 ```
 
 En Linux:
@@ -58,6 +77,12 @@ Para detenerlo:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\stop.ps1
+```
+
+Desde `cmd.exe`:
+
+```bat
+scripts\stop.bat
 ```
 
 En Linux:
