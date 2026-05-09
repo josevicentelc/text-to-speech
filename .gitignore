@@ -8,3 +8,4 @@ generated_audio/
 *.wav
 server.*.log
 server.pid
+server.backend.pid

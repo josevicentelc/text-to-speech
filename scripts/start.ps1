@@ -75,5 +75,27 @@ if ($BindHost -eq "0.0.0.0" -and -not ($listeners -match "0\.0\.0\.0:$Port|\[::\
 
 Write-Host "Servicio iniciado en http://$($BindHost):$Port con PID $($process.Id)"
 if ($BindHost -eq "0.0.0.0") {
-    Write-Host "Desde otros equipos de la red usa la IP de este equipo, por ejemplo: http://192.168.10.205:$Port"
+    $lanAddresses = @()
+    try {
+        $lanAddresses = Get-NetIPConfiguration |
+            Where-Object { $_.IPv4DefaultGateway -and $_.IPv4Address } |
+            ForEach-Object { $_.IPv4Address.IPAddress } |
+            Where-Object { $_ -and $_ -notlike "127.*" } |
+            Sort-Object -Unique
+    } catch {
+        $ipconfigOutput = ipconfig
+        $lanAddresses = $ipconfigOutput |
+            Select-String -Pattern "IPv4.*:\s*([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)" |
+            ForEach-Object { $_.Matches[0].Groups[1].Value } |
+            Where-Object { $_ -and $_ -notlike "127.*" -and $_ -notlike "169.254.*" } |
+            Sort-Object -Unique
+    }
+
+    if ($lanAddresses.Count -gt 0) {
+        Write-Host "Desde otros equipos de la red usa una de estas URLs:"
+        $lanAddresses | ForEach-Object { Write-Host "  http://$($_):$Port" }
+    } else {
+        Write-Host "Desde otros equipos de la red usa la IP LAN de este equipo, por ejemplo: http://192.168.1.50:$Port"
+    }
+    Write-Host "No uses http://0.0.0.0:$Port desde otro equipo; 0.0.0.0 solo indica que el servidor escucha en todas las interfaces."
 }

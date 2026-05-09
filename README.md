@@ -96,6 +96,14 @@ Tambien puedes usar el acceso directo:
 scripts\start-lan.bat
 ```
 
+Si Windows Firewall permite `node.exe` pero bloquea procesos Python, puedes arrancar el modo proxy Node:
+
+```bat
+scripts\start-node-lan.bat
+```
+
+En este modo los equipos de la red siguen usando `http://IP_DEL_EQUIPO:8000`, pero el proceso publico es Node.js. Node reenvia las peticiones al backend Python privado en `127.0.0.1:8765`.
+
 En Linux:
 
 ```bash
